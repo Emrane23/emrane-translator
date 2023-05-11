@@ -1,4 +1,5 @@
 const countries = {
+   
     "ar": "Arabic",
     "be-BY": "Bielarus",
     "bem-ZM": "Bemba",
@@ -96,4 +97,3 @@ const countries = {
     "yi-YD": "Yiddish",
     "zu-ZA": "Zulu"
 }
-export default countries
