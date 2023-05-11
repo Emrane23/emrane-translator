@@ -41,8 +41,10 @@
     </div>
     <div style="display: flex; flex-direction: row">
       <span class="textlength">{{ textLength }} / 5000</span>
-      <div style="margin-left: 220px; position: absolute">
-        Langue source : <span class="detected" @click="changeToDetectedLanguage()">Anglais</span>
+      <div style="margin-left: 220px; position: absolute" v-if="detectOtherLanguage.language">
+        <!-- <i class="fas fa-exclamation-circle"></i> -->
+        <i class="fas fa-magic" style="color: gold;"></i>
+         Langue source : <span class="detected" @click="changeToDetectedLanguage(detectOtherLanguage.keylanguage)">{{ detectOtherLanguage.language}}</span>
       </div>
     </div>
     <ul class="controls">
@@ -102,6 +104,10 @@ export default {
       isVolumeOn: false,
       isVolumeOnTo: false,
       isRecording: false,
+      detectOtherLanguage: {
+        keylanguage:"",
+        language:"",
+      },
       titleTo: "",
       titleFrom: "",
       placeholder: "Enter text",
@@ -133,10 +139,22 @@ export default {
         this.translatedText = "";
         return;
       }
+      this.detectOtherLanguage = {
+        keylanguage:"",
+        language:"",
+      };
       await axios
         .post("/api/translate", { translateFrom, translateTo, text })
         .then((response) => {
           this.translatedText = response.data.translatedtext;
+          if (translateFrom != response.data.langDetcted) {
+            for (const key in allCountries) {
+                if (key == response.data.langDetcted) {
+                  this.detectOtherLanguage.keylanguage = key;
+                  this.detectOtherLanguage.language = allCountries[key];
+                }
+              }
+          }
         })
         .catch(({ response }) => {
           console.log(response.data.errors);
@@ -144,7 +162,6 @@ export default {
     },
 
     readOutLoud(message, target,otherTarget = "") {
-      console.log(otherTarget);
       if (otherTarget == "") {
         this.isVolumeOnTo = !this.isVolumeOnTo;
         if (this.isVolumeOnTo == false) {
@@ -186,8 +203,12 @@ export default {
       }, 1500);
     },
 
-    changeToDetectedLanguage(){
-      console.log("do!");
+    changeToDetectedLanguage(keylanguage){
+      this.detectOtherLanguage = {
+        keylanguage:"",
+        language:"",
+      };
+      this.translateFrom = keylanguage;
     },
 
     recordingFunction() {
@@ -223,13 +244,20 @@ export default {
 
     reverseSelections() {
       let aux = "";
+      let auxLang ="";
       this.isClicked = true;
       aux = this.translateFrom;
+      auxLang = this.text ;
       this.translateFrom = this.translateTo;
+      this.text = this.translatedText ;
       this.translateTo = aux;
+      this.translatedText =auxLang;
+
+      this.translateFunction();
       setTimeout(() => {
         this.isClicked = false;
       }, "500");
+      
     },
   },
 
@@ -295,6 +323,12 @@ body {
   border-radius: 0px;
   border-left: 1px solid #ccc;
 }
+/* .comment{
+  margin-left: 220px; 
+  color: red;
+  font-size: small;
+  position: absolute
+} */
 .text-input textarea {
   height: 250px;
   width: 100%;
