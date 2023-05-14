@@ -2,7 +2,7 @@
   <div class="wrapper">
     <ul class="languages">
       <li class="row from">
-        <select v-model="translateFrom" @change="translateFunction()">
+        <select v-model="translateFrom">
           <option v-for="(country, key) in countries" :key="key" :value="key">
             {{ country }}
           </option>
@@ -10,6 +10,7 @@
       </li>
       <li class="exchange">
         <i
+          title="Switch languages (Ctrl+Q)"
           :class="['fas', 'fa-exchange-alt', { clicked: isClicked }]"
           @click="reverseSelections()"
         ></i>
@@ -46,11 +47,18 @@
         <i class="fas fa-magic" style="color: gold;"></i>
          Langue source : <span class="detected" @click="changeToDetectedLanguage(detectOtherLanguage.keylanguage)">{{ detectOtherLanguage.language}}</span>
       </div>
+      <div class="comment" v-if="errors">
+        <i class="fas fa-exclamation-circle"></i>
+        An error occurred in the server.
+      </div>
+      <div v-if="loading"  class="spinner-symbol spinner-border spinner-border-sm mt-2"></div>
     </div>
     <ul class="controls">
       <li class="row from">
         <div class="icons">
           <i
+            v-if="textLength > 0"
+            title="Listen"
             id="from"
             class="fas fa-volume-up " 
             :class="{ 'volume-on': isVolumeOn }" 
@@ -59,6 +67,7 @@
           ></i>
           <i
             id="from"
+            title="Translate with voice"
             class="fas fa-microphone"
             :class="{ animated: isRecording }"
             :style="{ color: isRecording ? 'red' : '' }"
@@ -72,18 +81,21 @@
           <i
             id="to"
             class="fas fa-volume-up"
+            title="Listen"
+            v-if="translatedText.length > 0"
             :class="{ 'volume-on': isVolumeOnTo }" 
             :style="{ color : isVolumeOnTo ? 'blue' :'' }"
             @click="readOutLoud(translatedText, translateTo)"
           ></i>
           <i
             id="to"
+            v-if="translatedText.length > 0 && !copied"
             class="fas fa-copy"
+            title="Copy translation"
             @click="copyFunction('to')"
-            v-if="!copied"
           >
           </i>
-          <template v-else>
+          <template v-if="copied">
             <i class="fas fa-check x-sm" style="color: green"></i>
           </template>
         </div>
@@ -104,10 +116,12 @@ export default {
       isVolumeOn: false,
       isVolumeOnTo: false,
       isRecording: false,
+      loading: false,
       detectOtherLanguage: {
         keylanguage:"",
         language:"",
       },
+      errors:"",
       titleTo: "",
       titleFrom: "",
       placeholder: "Enter text",
@@ -123,6 +137,9 @@ export default {
     text: function (query) {
       this.debouncedSearch(query);
     },
+    translateFrom : function(query){
+      this.translateFunction();
+    }
   },
   created: function () {
     this.debouncedSearch = _.debounce(this.translateFunction, 500);
@@ -135,6 +152,7 @@ export default {
   methods: {
     async translateFunction() {
       let { translateFrom, translateTo, text } = this;
+      this.errors = "";
       if (text == "") {
         this.translatedText = "";
         return;
@@ -143,9 +161,11 @@ export default {
         keylanguage:"",
         language:"",
       };
+      this.loading =true;
       await axios
         .post("/api/translate", { translateFrom, translateTo, text })
         .then((response) => {
+          this.loading =false;
           this.translatedText = response.data.translatedtext;
           if (translateFrom != response.data.langDetcted) {
             for (const key in allCountries) {
@@ -157,7 +177,9 @@ export default {
           }
         })
         .catch(({ response }) => {
-          console.log(response.data.errors);
+          this.loading =false;
+          this.errors = "Sorry, an error occurred in the server!";
+          this.translatedText = text;
         });
     },
 
@@ -193,6 +215,9 @@ export default {
 
     copyFunction(target) {
       this.copied = true;
+      this.$toast.show("The translation was well copied!",{
+        position: 'bottom-left'
+      });
       if (target == "from") {
         navigator.clipboard.writeText(this.text);
       } else {
@@ -208,6 +233,7 @@ export default {
         keylanguage:"",
         language:"",
       };
+      this.errors = "";
       this.translateFrom = keylanguage;
     },
 
@@ -242,6 +268,8 @@ export default {
       this.placeholder = "Speak now..";
     },
 
+
+
     reverseSelections() {
       let aux = "";
       let auxLang ="";
@@ -259,9 +287,22 @@ export default {
       }, "500");
       
     },
+
+    checkKeyCombination(event) {
+      if (event.key === 'q' && event.ctrlKey ) {
+        this.reverseSelections();
+      }
+    },
+    
   },
 
-  mounted() {},
+  mounted() {
+    document.addEventListener('keydown', this.checkKeyCombination);
+  },
+
+  beforeDestroy() {
+    document.removeEventListener('keydown', this.checkKeyCombination);
+  },
 };
 </script>
 
@@ -297,6 +338,8 @@ body {
 .fas {
   margin-right: 10px;
 }
+
+
 .container {
   max-width: 690px;
   width: 100%;
@@ -323,12 +366,17 @@ body {
   border-radius: 0px;
   border-left: 1px solid #ccc;
 }
-/* .comment{
+.comment{
   margin-left: 220px; 
   color: red;
+  position: absolute
+}
+.spinner-symbol{
+  margin-left: 310px; 
+  color: #5372f0;
   font-size: small;
   position: absolute
-} */
+}
 .text-input textarea {
   height: 250px;
   width: 100%;

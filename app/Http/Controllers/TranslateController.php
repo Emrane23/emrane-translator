@@ -19,9 +19,12 @@ class TranslateController extends Controller
         $tranlateTo = $request->translateTo;
         $text = $request->text;
         $tr = new GoogleTranslate($tranlateTo);
-        $text = $tr->translate($text);
+        $tx = $tr->translate($text);
         $langDetcted = $tr->getLastDetectedSource();
         $translatedText = GoogleTranslate::trans($text, $tranlateTo, $translateFrom);
+        if ($langDetcted != $translateFrom) {
+            $translatedText = $text ;
+        }
         return response()->json(['translatedtext' => $translatedText, 'langDetcted' => $langDetcted], 200);
     }
 }
